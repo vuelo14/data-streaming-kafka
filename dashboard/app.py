@@ -544,6 +544,10 @@ def main():
         st.markdown('<div class="section-header">📈 Event Timeline (Per Menit)</div>', unsafe_allow_html=True)
         timeline = get_events_per_minute(30)
         if not timeline.empty:
+            def hex_to_rgba(h, a):
+                h = h.lstrip('#')
+                return f"rgba({int(h[0:2], 16)}, {int(h[2:4], 16)}, {int(h[4:6], 16)}, {a})"
+
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             fig.add_trace(
                 go.Scatter(
@@ -554,7 +558,7 @@ def main():
                     line=dict(color=tc["accent_1"], width=2.5),
                     marker=dict(size=5),
                     fill="tozeroy",
-                    fillcolor=f"{tc['accent_1']}15",
+                    fillcolor=hex_to_rgba(tc["accent_1"], 0.15),
                 ),
                 secondary_y=False,
             )
@@ -576,7 +580,7 @@ def main():
                         x=timeline["minute"],
                         y=timeline["suspicious_count"],
                         name="🚨 Suspicious",
-                        marker_color="#ef444480",
+                        marker_color="rgba(239, 68, 68, 0.5)",
                         yaxis="y",
                     ),
                 )
