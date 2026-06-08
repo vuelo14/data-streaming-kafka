@@ -1,6 +1,9 @@
 version: '3.8'
 
 services:
+  # ============================================
+  # Infrastructure
+  # ============================================
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
@@ -11,12 +14,18 @@ services:
       - "2181:2181"
     networks:
       - kafka-net
+    healthcheck:
+      test: echo ruok | nc localhost 2181 | grep imok
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - "9092:9092"
       - "29092:29092"
@@ -31,6 +40,12 @@ services:
       KAFKA_NUM_PARTITIONS: 3
     networks:
       - kafka-net
+    healthcheck:
+      test: kafka-broker-api-versions --bootstrap-server localhost:9092
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   postgres:
     image: postgres:15-alpine
@@ -46,6 +61,66 @@ services:
       - ./config/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - kafka-net
+    healthcheck:
+      test: pg_isready -U admin -d clickstream_db
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Application Services
+  # ============================================
+  producer:
+    build: .
+    container_name: clickstream-producer
+    command: python producer/clickstream_producer.py
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-net
+    restart: on-failure
+
+  processor:
+    build: .
+    container_name: clickstream-processor
+    command: python processor/stream_processor.py
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: clickstream_db
+      DB_USER: admin
+      DB_PASSWORD: admin123
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - kafka-net
+    restart: on-failure
+
+  dashboard:
+    build: .
+    container_name: clickstream-dashboard
+    command: streamlit run dashboard/app.py --server.address 0.0.0.0
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: clickstream_db
+      DB_USER: admin
+      DB_PASSWORD: admin123
+    ports:
+      - "8501:8501"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - kafka-net
+    restart: on-failure
 
 networks:
   kafka-net:

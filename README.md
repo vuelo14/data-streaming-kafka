@@ -16,21 +16,21 @@ Sebuah platform e-commerce ingin memantau aktivitas pengunjung secara real-time:
 
 ```
 ┌────────────────────┐     ┌──────────────────────┐     ┌────────────────────┐
-│  Clickstream       │     │   Apache Kafka        │     │  Stream Processor  │
-│  Simulator         │────▶│   Topic: clickstream  │────▶│  (Python Consumer) │
-│  (Python Producer) │     │   Partitions: 3       │     │                    │
-│  ~25 msg/sec       │     │   Replication: 1      │     │  • Filtering       │
+│  Clickstream       │     │   Apache Kafka       │     │  Stream Processor  │
+│  Simulator         │───▶│   Topic: clickstream │────▶│  (Python Consumer) │
+│  (Python Producer) │     │   Partitions: 3      │     │                    │
+│  ~25 msg/sec       │     │   Replication: 1     │     │  • Filtering       │
 └────────────────────┘     └──────────────────────┘     │  • Aggregation     │
-                                                         │  • Enrichment      │
+                                                        │  • Enrichment      │
                            ┌──────────────────────┐     └────────┬───────────┘
-                           │  Static Data          │             │
-                           │  (users.json)         │─────────────┘
-                           └──────────────────────┘             │
+                           │  Static Data         │              │
+                           │  (users.json)        │──────────────┘
+                           └──────────────────────┘              │
                                                                  ▼
                            ┌──────────────────────┐     ┌────────────────────┐
-                           │  Streamlit Dashboard  │◀───│   PostgreSQL       │
-                           │  (Auto-refresh 5s)    │     │   Database         │
-                           │  📊 Live Analytics    │     │   3 Tables         │
+                           │  Streamlit Dashboard │◀───│   PostgreSQL       │
+                           │  (Auto-refresh 5s)   │     │   Database         │
+                           │  📊 Live Analytics   │     │   3 Tables        │
                            └──────────────────────┘     └────────────────────┘
 ```
 
@@ -82,59 +82,50 @@ data-streaming-kafka/
 
 ### Prasyarat
 - **Docker** & **Docker Compose** (via WSL2 / Docker Desktop)
-- **Python 3.9+**
-- **pip** (Python package manager)
 
-### Langkah 1: Clone Repository
+### 🚀 Cara Cepat (Recommended) — Satu Perintah
+
 ```bash
-git clone <repository-url>
+git clone https://github.com/vuelo14/data-streaming-kafka
 cd data-streaming-kafka
+
+# Jalankan SEMUA komponen (Kafka + PostgreSQL + Producer + Processor + Dashboard)
+docker compose up --build
 ```
 
-### Langkah 2: Jalankan Infrastructure
+Tunggu hingga semua service siap (~1-2 menit), lalu buka dashboard di browser:
+**http://localhost:8501**
+
+Untuk menghentikan semua service:
 ```bash
-# Start Kafka, Zookeeper, dan PostgreSQL
-docker-compose up -d
-
-# Verifikasi semua container berjalan
-docker-compose ps
-
-# Tunggu ~30 detik sampai Kafka sepenuhnya siap
+docker compose down        # Stop semua container
+docker compose down -v     # Stop + hapus data volume (reset database)
 ```
 
-### Langkah 3: Install Python Dependencies
+### 🔧 Cara Manual (Opsional) — Jalankan Python di Lokal
+
+Jika ingin menjalankan aplikasi Python di luar Docker (misal untuk debugging):
+
 ```bash
+# 1. Jalankan hanya infrastructure
+docker compose up -d zookeeper kafka postgres
+
+# 2. Tunggu ~30 detik, lalu install Python dependencies
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-```
 
-### Langkah 4: Jalankan Producer (Terminal 1)
-```bash
+# 3. Terminal 1: Producer
 python producer/clickstream_producer.py
-```
-Producer akan mulai mengirim ~25 events/detik ke Kafka.
 
-### Langkah 5: Jalankan Stream Processor (Terminal 2)
-```bash
+# 4. Terminal 2: Processor
 python processor/stream_processor.py
-```
-Processor akan mengkonsumsi, memfilter, mengagregasi, dan meng-enrich data.
 
-### Langkah 6: Jalankan Dashboard (Terminal 3)
-```bash
+# 5. Terminal 3: Dashboard
 streamlit run dashboard/app.py
 ```
-Dashboard akan terbuka di browser pada `http://localhost:8501`
 
-### Langkah 7: Matikan Sistem
-```bash
-# Stop producer dan processor dengan Ctrl+C
-
-# Stop infrastructure
-docker-compose down
-
-# Untuk menghapus data volume (opsional)
-docker-compose down -v
-```
+> **Note**: Saat menjalankan manual, aplikasi akan konek ke `localhost:29092` (Kafka) dan `localhost:5432` (PostgreSQL).
 
 ## ⚙️ Stream Processing Detail
 

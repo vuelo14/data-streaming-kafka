@@ -3,35 +3,35 @@
 ## Diagram Arsitektur
 
 ```
-    ┌─────────────────────────────────────────────────────────────────────────┐
+    ┌────────────────────────────────────────────────────────────────────────┐
     │                         DOCKER COMPOSE NETWORK                         │
-    │                                                                         │
+    │                                                                        │
     │  ┌─────────────┐    ┌──────────────────────────────┐    ┌───────────┐  │
-    │  │  Zookeeper   │    │       Apache Kafka            │    │PostgreSQL │  │
-    │  │  Port: 2181  │◄──▶│  Broker ID: 1                │    │  Port:    │  │
-    │  │              │    │  Internal: 9092               │    │  5432     │  │
-    │  └─────────────┘    │  External: 29092              │    │           │  │
-    │                      │                                │    │ DB:       │  │
-    │                      │  Topic: clickstream-events     │    │ click-    │  │
-    │                      │  ├── Partition 0               │    │ stream_db │  │
-    │                      │  ├── Partition 1               │    │           │  │
-    │                      │  └── Partition 2               │    │ Tables:   │  │
-    │                      │                                │    │ • proc..  │  │
-    │                      │  Consumer Group:               │    │ • prod..  │  │
-    │                      │  clickstream-processor-group   │    │ • susp..  │  │
-    │                      └──────────────────────────────┘    └───────────┘  │
-    └─────────────────────────────────────────────────────────────────────────┘
-                    ▲                                              ▲
-                    │ Produce (JSON, key=user_id)                  │ Write (psycopg2)
-                    │ ~25 msg/sec                                  │ Batch insert
-                    │                                              │
-    ┌───────────────┴──────┐              ┌────────────────────────┴───────────┐
+    │  │  Zookeeper  │    │       Apache Kafka           │    │PostgreSQL │  │
+    │  │  Port: 2181 │◄──▶│  Broker ID: 1               │    │  Port:    │  │
+    │  │             │    │  Internal: 9092              │    │  5432     │  │
+    │  └─────────────┘    │  External: 29092             │    │           │  │
+    │                     │                              │    │ DB:       │  │
+    │                     │  Topic: clickstream-events   │    │ click-    │  │
+    │                     │  ├── Partition 0             │    │ stream_db │  │
+    │                     │  ├── Partition 1             │    │           │  │
+    │                     │  └── Partition 2             │    │ Tables:   │  │
+    │                     │                              │    │ • proc..  │  │
+    │                     │  Consumer Group:             │    │ • prod..  │  │
+    │                     │  clickstream-processor-group │    │ • susp..  │  │
+    │                     └──────────────────────────────┘    └───────────┘  │
+    └────────────────────────────────────────────────────────────────────────┘
+                    ▲                                               ▲
+                    │ Produce (JSON, key=user_id)                   │ Write (psycopg2)
+                    │ ~25 msg/sec                                   │ Batch insert
+                    │                                               │
+    ┌───────────────┴───────┐              ┌────────────────────────┴───────────┐
     │  PRODUCER             │              │  STREAM PROCESSOR                  │
     │  clickstream_         │              │  stream_processor.py               │
     │  producer.py          │              │                                    │
     │                       │              │  ┌──────────────────────────────┐  │
     │  • Simulates 22       │  Consume     │  │  1. FILTERING                │  │
-    │    users (20+2 bot)   │◄────────────▶│  │  Bot Detection:              │  │
+    │    users (20+2 bot)   │◄───────────▶│  │  Bot Detection:              │  │
     │  • 30 products        │  from Kafka  │  │  Sliding window 30s          │  │
     │  • 4 event types      │              │  │  Threshold: >15 events       │  │
     │  • Weighted random    │              │  ├──────────────────────────────┤  │
@@ -44,7 +44,7 @@
     └───────────────────────┘              │  │  Join with users.json        │  │
                                            │  │  Add: name, city, membership │  │
     ┌───────────────────────┐              │  └──────────────────────────────┘  │
-    │  STATIC DATA          │              └───────────────────────────────────┘
+    │  STATIC DATA          │              └────────────────────────────────────┘
     │  data/users.json      │──────────────────────────┘
     │  data/products.json   │
     └───────────────────────┘              ┌───────────────────────────────────┐
@@ -97,15 +97,15 @@
 Topic: clickstream-events (3 partitions)
 
   Partition 0                 Partition 1                 Partition 2
-  ┌─────────┐               ┌─────────┐               ┌─────────┐
+  ┌──────────┐               ┌──────────┐               ┌──────────┐
   │ user_001 │               │ user_002 │               │ user_003 │
   │ user_004 │               │ user_005 │               │ user_006 │
   │ user_007 │               │ user_008 │               │ user_009 │
   │ ...      │               │ ...      │               │ ...      │
   │ bot_001  │               │ bot_002  │               │          │
-  └─────────┘               └─────────┘               └─────────┘
-       │                         │                         │
-       ▼                         ▼                         ▼
+  └──────────┘               └──────────┘               └──────────┘
+       │                          │                          │
+       ▼                          ▼                          ▼
   Consumer Thread            Consumer Thread            Consumer Thread
   (within same consumer instance, sequential polling)
 ```
