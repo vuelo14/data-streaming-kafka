@@ -90,7 +90,7 @@ git clone https://github.com/vuelo14/data-streaming-kafka
 cd data-streaming-kafka
 
 # Jalankan SEMUA komponen (Kafka + PostgreSQL + Producer + Processor + Dashboard)
-docker compose up --build
+docker compose up -d --build
 ```
 
 Tunggu hingga semua service siap (~1-2 menit), lalu buka dashboard di browser:
